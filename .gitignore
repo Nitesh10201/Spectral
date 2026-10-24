@@ -1,0 +1,40 @@
+# --- Challenge material (organizer's files, not published) ---
+dataset/
+problem_statement.md
+AGENTS.md
+CLAUDE.md
+output.csv
+log.txt
+agent_trace_instructions.md
+
+# --- Secrets ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- Virtual environments (keep at repo root, outside code/) ---
+.venv/
+venv/
+
+# --- Model result cache and local run output ---
+code/cache/
+*.cache
+
+# --- Packaging ---
+code.zip
+
+# --- OS and editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
