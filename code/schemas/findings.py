@@ -1,6 +1,6 @@
 from pydantic import BaseModel, model_validator
 
-from .enums import Operation, Phase, OPERATION_SPEC
+from .enums import OPERATION_SPEC, Operation, Phase
 
 
 class Finding(BaseModel):

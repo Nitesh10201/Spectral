@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, field_validator
+
+from pydantic import BaseModel
 
 
 class ReportedStatus(str, Enum):  # or import from enums.py

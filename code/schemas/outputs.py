@@ -1,8 +1,13 @@
 from pydantic import BaseModel, Field, model_validator
 
 from .enums import (
-    DeletionStatus, Operation, Phase, State,
-    OPERATION_SPEC, OPERATION_ORDER, PHASE_ORDER,
+    OPERATION_ORDER,
+    OPERATION_SPEC,
+    PHASE_ORDER,
+    DeletionStatus,
+    Operation,
+    Phase,
+    State,
 )
 
 
