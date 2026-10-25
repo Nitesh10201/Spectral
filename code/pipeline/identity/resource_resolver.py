@@ -1,21 +1,20 @@
 import json
 import logging
 import re
-from datetime import datetime
-from pathlib import Path
-from typing import Any
-
 from code.config import DATASET_DIR
 from code.filesystem.reader import read_evidence_files, read_system_activity
 from code.pipeline.runner.context import SubjectContext
 from code.schemas.inputs import ActivityRecord, DeletionRequest, EvidenceFile
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 def parse_iso(ts: str) -> datetime:
     """Parse ISO-8601 string to timezone-aware UTC datetime."""
-    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    return datetime.fromisoformat(ts)
 
 
 def parse_kv_log_line(line: str) -> dict[str, str]:
@@ -50,11 +49,15 @@ class ResourceResolver:
         self.evidence_files = evidence_files
         self.system_activity = system_activity
 
-        self._ev_manifest: dict[str, tuple[str, datetime]] = {}  # rel_path -> (fid, captured_at)
+        self._ev_manifest: dict[
+            str, tuple[str, datetime]
+        ] = {}  # rel_path -> (fid, captured_at)
         self._fid_to_captured_at: dict[str, datetime] = {}
 
         # key (uid / email / phone) -> list of (acc_id, fid, status_code, event_or_capture_dt)
-        self._account_evidence: dict[str, list[tuple[str, str, int | None, datetime]]] = {}
+        self._account_evidence: dict[
+            str, list[tuple[str, str, int | None, datetime]]
+        ] = {}
         # key (uid / email) -> list of (aud_id, fid, event_or_capture_dt)
         self._audit_evidence: dict[str, list[tuple[str, str, datetime]]] = {}
 
@@ -76,13 +79,17 @@ class ResourceResolver:
         # 1. Load manifests and activities if not provided
         if self.evidence_files is None:
             try:
-                self.evidence_files = read_evidence_files(self.dataset_dir / "evidence_files.csv")
+                self.evidence_files = read_evidence_files(
+                    self.dataset_dir / "evidence_files.csv"
+                )
             except OSError:
                 self.evidence_files = []
 
         if self.system_activity is None:
             try:
-                self.system_activity = read_system_activity(self.dataset_dir / "system_activity.csv")
+                self.system_activity = read_system_activity(
+                    self.dataset_dir / "system_activity.csv"
+                )
             except OSError:
                 self.system_activity = []
 
@@ -131,7 +138,9 @@ class ResourceResolver:
             return
         k_clean = key.strip().lower() if "@" in key else key.strip()
         captured_dt = dt or self._fid_to_captured_at.get(fid, datetime.max)
-        self._account_evidence.setdefault(k_clean, []).append((acc_id, fid, status, captured_dt))
+        self._account_evidence.setdefault(k_clean, []).append(
+            (acc_id, fid, status, captured_dt)
+        )
         if acc_id.startswith("account_") and k_clean not in self._user_to_account:
             self._user_to_account[k_clean] = acc_id
 
@@ -158,7 +167,7 @@ class ResourceResolver:
             fid, dt = self._ev_manifest.get(rel_p, ("", datetime.max))
             try:
                 data = json.loads(jf.read_text(encoding="utf-8"))
-            except Exception:
+            except (OSError, json.JSONDecodeError, UnicodeDecodeError):
                 continue
 
             # Snapshots
@@ -168,19 +177,28 @@ class ResourceResolver:
                     col = s.get("collection")
                     s_dt = parse_iso(s["captured_at"]) if s.get("captured_at") else dt
                     recs = s.get("records", [])
-                    if (store == "account_service" or col == "customer_profiles") and len(recs) == 0:
+                    if (
+                        store == "account_service" or col == "customer_profiles"
+                    ) and len(recs) == 0:
                         self._empty_account_snapshots.add(fid)
                     for rec in recs:
                         if store == "account_service" or col == "customer_profiles":
                             acc_id = rec.get("resource_id") or rec.get("account_id")
-                            self._add_account(rec.get("customer_reference"), acc_id, fid, dt=s_dt)
+                            self._add_account(
+                                rec.get("customer_reference"), acc_id, fid, dt=s_dt
+                            )
                             if rec.get("email"):
                                 self._add_account(rec["email"], acc_id, fid, dt=s_dt)
                             if rec.get("phone"):
                                 self._add_account(rec["phone"], acc_id, fid, dt=s_dt)
-                        elif store == "security_service" or col == "security_audit_events":
+                        elif (
+                            store == "security_service"
+                            or col == "security_audit_events"
+                        ):
                             aud_id = rec.get("resource_id") or rec.get("record_id")
-                            self._add_audit(rec.get("subject_reference"), aud_id, fid, dt=s_dt)
+                            self._add_audit(
+                                rec.get("subject_reference"), aud_id, fid, dt=s_dt
+                            )
 
             # Service exports
             if "service_exports" in data:
@@ -188,22 +206,44 @@ class ResourceResolver:
                 for al in sexp.get("account_service", {}).get("profile_lookups", []):
                     acc_id = al.get("resource_id")
                     stat = al.get("status_code")
-                    obs_dt = parse_iso(al["observed_at"]) if al.get("observed_at") else dt
+                    obs_dt = (
+                        parse_iso(al["observed_at"]) if al.get("observed_at") else dt
+                    )
                     prof = al.get("profile") or {}
-                    self._add_account(prof.get("customer_reference"), acc_id, fid, status=stat, dt=obs_dt)
+                    self._add_account(
+                        prof.get("customer_reference"),
+                        acc_id,
+                        fid,
+                        status=stat,
+                        dt=obs_dt,
+                    )
                     if prof.get("email"):
-                        self._add_account(prof["email"], acc_id, fid, status=stat, dt=obs_dt)
+                        self._add_account(
+                            prof["email"], acc_id, fid, status=stat, dt=obs_dt
+                        )
                     if stat == 404 and acc_id:
                         self._account_404_evidence[acc_id] = (fid, obs_dt)
                 for ar in sexp.get("security_service", {}).get("audit_records", []):
-                    ar_dt = parse_iso(ar["observed_at"]) if ar.get("observed_at") else dt
-                    self._add_audit(ar.get("subject_reference"), ar.get("resource_id"), fid, dt=ar_dt)
+                    ar_dt = (
+                        parse_iso(ar["observed_at"]) if ar.get("observed_at") else dt
+                    )
+                    self._add_audit(
+                        ar.get("subject_reference"),
+                        ar.get("resource_id"),
+                        fid,
+                        dt=ar_dt,
+                    )
 
             # Audit ledger
             if isinstance(data, list):
                 for item in data:
                     aud_id = item.get("resource_id") or item.get("audit_id")
-                    self._add_audit(item.get("subject_reference") or item.get("user_id"), aud_id, fid, dt=dt)
+                    self._add_audit(
+                        item.get("subject_reference") or item.get("user_id"),
+                        aud_id,
+                        fid,
+                        dt=dt,
+                    )
 
     def _index_sql_files(self) -> None:
         db_dir = self.dataset_dir / "evidence" / "databases"
@@ -215,15 +255,27 @@ class ResourceResolver:
             fid, dt = self._ev_manifest.get(rel_p, ("", datetime.max))
             try:
                 text = sql_f.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
+            except OSError:
                 continue
 
             # Record JSON inserts (e.g. read replicas, reporting replicas, failover replicas)
-            for m in re.finditer(r"VALUES\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'({.+?})'\s*,", text):
-                res_id, _sys, _coll, jstr = m.group(1), m.group(2), m.group(3), m.group(4)
+            for m in re.finditer(
+                r"VALUES\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'({.+?})'\s*,",
+                text,
+            ):
+                res_id, _sys, _coll, jstr = (
+                    m.group(1),
+                    m.group(2),
+                    m.group(3),
+                    m.group(4),
+                )
                 try:
                     data = json.loads(jstr.replace("''", "'"))
-                    cust_ref = data.get("customer_reference") or data.get("subject_reference") or data.get("user_id")
+                    cust_ref = (
+                        data.get("customer_reference")
+                        or data.get("subject_reference")
+                        or data.get("user_id")
+                    )
                     email = data.get("email")
                     if res_id.startswith("account_"):
                         if cust_ref:
@@ -233,11 +285,15 @@ class ResourceResolver:
                     elif res_id.startswith("audit_record_"):
                         if cust_ref:
                             self._add_audit(cust_ref, res_id, fid, dt=dt)
-                except Exception:
+                except (json.JSONDecodeError, ValueError, TypeError):
                     pass
 
             # customer_profiles tables
-            for m in re.finditer(r"INSERT INTO\s+customer_profiles\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)", text, re.I):
+            for m in re.finditer(
+                r"INSERT INTO\s+customer_profiles\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)",
+                text,
+                re.IGNORECASE,
+            ):
                 cols = [c.strip().lower() for c in m.group(1).split(",")]
                 vals = [v.strip().strip("'\"") for v in m.group(2).split(",")]
                 row = dict(zip(cols, vals))
@@ -248,7 +304,11 @@ class ResourceResolver:
                     self._add_account(row["email"], acc_id, fid, dt=dt)
 
             # security_audit_records tables
-            for m in re.finditer(r"INSERT INTO\s+security_audit_records\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)", text, re.I):
+            for m in re.finditer(
+                r"INSERT INTO\s+security_audit_records\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)",
+                text,
+                re.IGNORECASE,
+            ):
                 cols = [c.strip().lower() for c in m.group(1).split(",")]
                 vals = [v.strip().strip("'\"") for v in m.group(2).split(",")]
                 row = dict(zip(cols, vals))
@@ -266,7 +326,7 @@ class ResourceResolver:
             fid, dt = self._ev_manifest.get(rel_p, ("", datetime.max))
             try:
                 text = txt_f.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
+            except OSError:
                 continue
 
             for line in text.splitlines():
@@ -292,7 +352,7 @@ class ResourceResolver:
             fid, file_dt = self._ev_manifest.get(rel_p, ("", datetime.max))
             try:
                 text = log_f.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
+            except OSError:
                 continue
 
             traces: dict[str, list[dict[str, Any]]] = {}
@@ -302,17 +362,17 @@ class ResourceResolver:
                 # JSON line
                 if "{" in line and "}" in line:
                     try:
-                        jpart = line[line.find("{"):line.rfind("}")+1]
+                        jpart = line[line.find("{") : line.rfind("}") + 1]
                         data = json.loads(jpart)
                         # Extract event timestamp from line beginning or json field
-                        ts_str = line[:line.find("{")].strip()
+                        ts_str = line[: line.find("{")].strip()
                         if ts_str and (ts_str.endswith("Z") or "+00:00" in ts_str):
                             data["timestamp"] = ts_str
                         tid = data.get("trace_id")
                         if tid:
                             traces.setdefault(tid, []).append(data)
                         continue
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError):
                         pass
                 # Key-value line
                 kv = parse_kv_log_line(line)
@@ -320,23 +380,35 @@ class ResourceResolver:
                 if tid:
                     traces.setdefault(tid, []).append(kv)
 
-            for _tid, events in traces.items():
+            for events in traces.values():
                 keys: set[str] = set()
                 ev_dt = file_dt
                 for ev in events:
                     if ev.get("timestamp"):
                         try:
                             ev_dt = parse_iso(ev["timestamp"])
-                        except Exception:
+                        except (KeyError, ValueError):
                             pass
-                    for kf in ["lookup_key", "match_key", "subject_ref", "subject_key", "correlation_key", "owner_key"]:
+                    for kf in [
+                        "lookup_key",
+                        "match_key",
+                        "subject_ref",
+                        "subject_key",
+                        "correlation_key",
+                        "owner_key",
+                    ]:
                         val = ev.get(kf)
                         if val and val != "null":
                             keys.add(val)
                 for ev in events:
                     res_id = ev.get("resource_id", "")
                     if res_id.startswith("account_"):
-                        stat = 404 if str(ev.get("http_status")) == "404" or str(ev.get("rows")) == "0" else 200
+                        stat = (
+                            404
+                            if str(ev.get("http_status")) == "404"
+                            or str(ev.get("rows")) == "0"
+                            else 200
+                        )
                         for k in keys:
                             self._add_account(k, res_id, fid, status=stat, dt=ev_dt)
                         if stat == 404:
@@ -422,7 +494,8 @@ class ResourceResolver:
                     # Batch typically occurs -80 min to +15 min relative to reported_at
                     if -5000 <= diff_secs <= 900:
                         res_match = (a.reported_result == expected_result) or (
-                            rep_stat == "PARTIALLY_COMPLETE" and a.reported_result == "SUCCESS"
+                            rep_stat == "PARTIALLY_COMPLETE"
+                            and a.reported_result == "SUCCESS"
                         )
                         score = abs(diff_secs) if res_match else abs(diff_secs) + 10000
                         if score < min_diff:

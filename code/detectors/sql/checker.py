@@ -452,9 +452,11 @@ class SqlSnapshotChecker:
                 "FROM support_records;"
             ).fetchall()
             for rid, cref, rname, rem, rph, _msg in rows:
-                if (cref and cref == subject.user_id) or (
-                    rem and rem.strip().lower() in subject.emails
-                ) or (rph and rph.strip() in subject.phones):
+                if (
+                    (cref and cref == subject.user_id)
+                    or (rem and rem.strip().lower() in subject.emails)
+                    or (rph and rph.strip() in subject.phones)
+                ):
                     has_pii = bool(rem or rph or rname)
                     if has_pii:
                         key = ("support_platform", rid, Operation.REPORT_EXPOSED_PII)
@@ -470,7 +472,11 @@ class SqlSnapshotChecker:
                                 )
                             )
                     else:
-                        vkey = ("support_platform", rid, Operation.VERIFY_RECORD_REDACTED)
+                        vkey = (
+                            "support_platform",
+                            rid,
+                            Operation.VERIFY_RECORD_REDACTED,
+                        )
                         if vkey not in seen_verifications:
                             seen_verifications.add(vkey)
                             result.verifications.append(
@@ -491,9 +497,11 @@ class SqlSnapshotChecker:
                 "FROM customer_search_documents;"
             ).fetchall()
             for rid, cref, _dname, em, ph in rows:
-                if (cref and cref == subject.user_id) or (
-                    em and em.strip().lower() in subject.emails
-                ) or (ph and ph.strip() in subject.phones):
+                if (
+                    (cref and cref == subject.user_id)
+                    or (em and em.strip().lower() in subject.emails)
+                    or (ph and ph.strip() in subject.phones)
+                ):
                     key = ("search_service", rid, Operation.REPORT_REMAINING_RECORD)
                     if key not in seen_findings:
                         seen_findings.add(key)
@@ -513,9 +521,11 @@ class SqlSnapshotChecker:
                 "FROM customer_analytics_profiles;"
             ).fetchall()
             for rid, cref, em, ph, eh in rows:
-                if (cref and cref == subject.user_id) or (
-                    em and em.strip().lower() in subject.emails
-                ) or (ph and ph.strip() in subject.phones):
+                if (
+                    (cref and cref == subject.user_id)
+                    or (em and em.strip().lower() in subject.emails)
+                    or (ph and ph.strip() in subject.phones)
+                ):
                     has_pii = bool(em or ph or eh)
                     if has_pii:
                         key = ("analytics_platform", rid, Operation.REPORT_EXPOSED_PII)
@@ -531,7 +541,11 @@ class SqlSnapshotChecker:
                                 )
                             )
                     else:
-                        vkey = ("analytics_platform", rid, Operation.VERIFY_RECORD_ANONYMIZED)
+                        vkey = (
+                            "analytics_platform",
+                            rid,
+                            Operation.VERIFY_RECORD_ANONYMIZED,
+                        )
                         if vkey not in seen_verifications:
                             seen_verifications.add(vkey)
                             result.verifications.append(
@@ -552,9 +566,11 @@ class SqlSnapshotChecker:
                 "FROM customer_exports;"
             ).fetchall()
             for rid, cref, oem, oph in rows:
-                if (cref and cref == subject.user_id) or (
-                    oem and oem.strip().lower() in subject.emails
-                ) or (oph and oph.strip() in subject.phones):
+                if (
+                    (cref and cref == subject.user_id)
+                    or (oem and oem.strip().lower() in subject.emails)
+                    or (oph and oph.strip() in subject.phones)
+                ):
                     key = ("export_service", rid, Operation.REPORT_REMAINING_RECORD)
                     if key not in seen_findings:
                         seen_findings.add(key)
@@ -574,22 +590,23 @@ class SqlSnapshotChecker:
                 "FROM customer_profiles;"
             ).fetchall()
             for rid, cref, _fname, em, ph, st in rows:
-                if (cref and cref == subject.user_id) or (
-                    em and em.strip().lower() in subject.emails
-                ) or (ph and ph.strip() in subject.phones):
-                    if st == "ACTIVE":
-                        key = ("account_service", rid, Operation.REPORT_REMAINING_RECORD)
-                        if key not in seen_findings:
-                            seen_findings.add(key)
-                            result.findings.append(
-                                Finding(
-                                    system_id="account_service",
-                                    resource_id=rid,
-                                    kind=Operation.REPORT_REMAINING_RECORD,
-                                    evidence_id=ef.file_id,
-                                    data_category="USER_PROFILE",
-                                )
+                if (
+                    (cref and cref == subject.user_id)
+                    or (em and em.strip().lower() in subject.emails)
+                    or (ph and ph.strip() in subject.phones)
+                ) and st == "ACTIVE":
+                    key = ("account_service", rid, Operation.REPORT_REMAINING_RECORD)
+                    if key not in seen_findings:
+                        seen_findings.add(key)
+                        result.findings.append(
+                            Finding(
+                                system_id="account_service",
+                                resource_id=rid,
+                                kind=Operation.REPORT_REMAINING_RECORD,
+                                evidence_id=ef.file_id,
+                                data_category="USER_PROFILE",
                             )
+                        )
 
     def _check_absent_account_verification(
         self,

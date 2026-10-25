@@ -1,5 +1,4 @@
 import logging
-
 from code.config import DELETION_REQUESTS_PATH, OUTPUT_PATH
 from code.filesystem.reader import (
     read_deletion_requests,
@@ -98,8 +97,12 @@ class PipelineOrchestrator:
         if self.resource_resolver is None:
             self.load_defaults_if_empty()
 
-        account_id, account_ev_id = self.resource_resolver.resolve_account(subject, request)
-        audit_id, audit_ev_id = self.resource_resolver.resolve_audit_record(subject, request)
+        account_id, account_ev_id = self.resource_resolver.resolve_account(
+            subject, request
+        )
+        audit_id, audit_ev_id = self.resource_resolver.resolve_audit_record(
+            subject, request
+        )
 
         if not account_id:
             logger.warning(
@@ -193,7 +196,9 @@ class PipelineOrchestrator:
             )
 
         # Filter complete verifications
-        valid_complete_verifications = [v for v in complete_verifications if v.evidence_id]
+        valid_complete_verifications = [
+            v for v in complete_verifications if v.evidence_id
+        ]
 
         # Invariant: Never return COMPLETE without at least one evidence-backed verification step.
         # And if an account_id exists, account_service must be verified absent with evidence.
