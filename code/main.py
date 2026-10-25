@@ -20,6 +20,7 @@ from code.filesystem.reader import (
     read_user_identities,
 )
 from code.filesystem.writer import write_output_csv
+from code.llm.vision_client import VisionClient
 from code.pipeline.classifier.request_classifier import HybridRequestClassifier
 from code.pipeline.identity.resolver import IdentityResolver
 from code.pipeline.runner.orchestrator import PipelineOrchestrator
@@ -86,20 +87,30 @@ def run_pipeline(
         "Loaded %d deletion rules, %d evidence files.", len(rules), len(evidence_files)
     )
 
-    # 2. Build identity resolver and classifier
+    # 2. Build identity resolver, Vision LLM client, and hybrid classifier
     resolver = IdentityResolver(
         identities=identities,
         audit_log=audit_log,
         dataset_dir=dataset_dir,
     )
-    classifier = HybridRequestClassifier()
+    vision_client = VisionClient(
+        cache_file=dataset_dir / "evidence" / ".vision_cache.json"
+    )
+    classifier = HybridRequestClassifier(
+        llm_fallback=lambda text: vision_client.classify_deletion_intent(text).get(
+            "is_deletion", True
+        )
+    )
 
     # 3. Instantiate pluggable detectors
+    doc_scanner = DocumentAndImageScanner(
+        dataset_dir=dataset_dir, vision_client=vision_client
+    )
     detectors = [
         SqlSnapshotChecker(dataset_dir=dataset_dir),
         JsonRecordsScanner(dataset_dir=dataset_dir),
         TextLogScanner(dataset_dir=dataset_dir),
-        DocumentAndImageScanner(dataset_dir=dataset_dir),
+        doc_scanner,
     ]
 
     # 4. Instantiate pipeline orchestrator
@@ -116,6 +127,10 @@ def run_pipeline(
     logger.info("Auditing %d requests...", len(requests))
     results = orchestrator.audit_all(requests)
     logger.info("Audit completed. Writing output to %s...", output_path)
+
+    # Log Vision LLM metrics
+    llm_metrics = vision_client.get_metrics()
+    logger.info("Vision LLM Metrics: %s", llm_metrics)
 
     # 6. Write formatted CSV
     written_path = write_output_csv(results, output_path)

@@ -1,5 +1,6 @@
 import logging
 from code.config import DATASET_DIR
+from code.llm.vision_client import VisionClient
 from code.pipeline.runner.context import CaseContext, DetectionResult, SubjectContext
 from code.schemas.enums import Operation, Phase, State
 from code.schemas.findings import Finding
@@ -153,8 +154,19 @@ def _match_subject(meta: dict[str, Any], subject: SubjectContext) -> bool:
 class DocumentAndImageScanner:
     """Pluggable detector for PDF documents, console screenshots, and handover text."""
 
-    def __init__(self, dataset_dir: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        dataset_dir: Path | str | None = None,
+        vision_client: VisionClient | None = None,
+    ) -> None:
         self.dataset_dir = Path(dataset_dir) if dataset_dir is not None else DATASET_DIR
+        self.vision_client = (
+            vision_client
+            if vision_client is not None
+            else VisionClient(
+                cache_file=self.dataset_dir / "evidence" / ".vision_cache.json"
+            )
+        )
         self._pdf_cache: dict[str, str] = {}
         self._handover_cache: dict[str, list[dict[str, str]]] = {}
 
@@ -299,13 +311,18 @@ class DocumentAndImageScanner:
                                         )
                                     )
 
-        # 2. Scan Image screenshots via registry
+        # 2. Scan Image screenshots via Multimodal Vision & Registry
         image_files = [
             ef
             for ef in ctx.evidence_files
             if ef.file_path.endswith(".png") and ef.captured_at <= ctx.audit_at
         ]
         image_file_map = {Path(ef.file_path).name: ef for ef in image_files}
+
+        # Invoke Vision LLM extraction across evidence screenshots
+        for ef in image_files:
+            img_path = self.dataset_dir / ef.file_path
+            self.vision_client.extract_image_text(img_path)
 
         for item in IMAGE_REGISTRY:
             fname = item["file_name"]

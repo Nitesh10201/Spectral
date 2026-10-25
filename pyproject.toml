@@ -3,8 +3,10 @@ name = "spectral"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "dotenv>=0.9.9",
     "pydantic>=2.14.1",
     "pypdf>=6.21.2",
+    "requests>=2.34.2",
 ]
 
 [dependency-groups]

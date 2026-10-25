@@ -1,9 +1,12 @@
 import argparse
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from code.config import OUTPUT_PATH, SAMPLE_OUTPUT_PATH
 from code.evaluation.harness.evaluator import evaluate_predictions
 from code.evaluation.harness.validator import validate_output_file
-from pathlib import Path
 
 
 def main() -> None:

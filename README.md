@@ -66,9 +66,10 @@ Spectral is designed around a modular pipeline with pluggable evidence detectors
    - Tracks lookups, anonymized audience profiles, connector states, and restore flags.
 5. **`TextLogScanner` (`code/detectors/logs/scanner.py`)**:
    - Two-pass distributed trace correlator across application traces and lookup logs.
-6. **`DocumentAndImageScanner` (`code/detectors/document/scanner.py`)**:
-   - Extracts structured facts from PDF attachments using `pypdf`.
-   - Inspects 11 admin console screenshots and shift handover records.
+6. **`DocumentAndImageScanner` (`code/detectors/document/scanner.py`) & `VisionClient` (`code/llm/vision_client.py`)**:
+   - Powered by `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` via `VISION_MODEL_API_KEY`.
+   - Extracts structured facts from PDF attachments using `pypdf` and multimodal console screenshots.
+   - Caches representations in `dataset/evidence/.vision_cache.json` for deterministic, offline-resilient execution.
 7. **`StepBuilder` & `Sorter` (`code/pipeline/steps/`)**:
    - Strict ordering: `PHASE_ORDER (FINDING -> REMEDIATION -> VERIFICATION)`, `OPERATION_ORDER`, `system_id`, `resource_id`.
    - 1-indexed consecutive step numbering and evidence grounding.
@@ -116,7 +117,7 @@ uv run python code/main.py --requests dataset/sample_deletion_requests.csv --out
 ## 4. Testing & Validation
 
 ### Run Unit Tests
-Spectral includes 59 unit tests using synthetic fixtures:
+Spectral includes 64 unit tests using synthetic fixtures:
 ```bash
 uv run pytest
 ```

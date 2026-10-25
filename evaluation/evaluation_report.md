@@ -32,18 +32,18 @@ The final evaluation was conducted across:
 
 | Metric | Score | Description |
 |---|---|---|
-| **Step Precision** | **77.27%** | Proportion of generated steps that match ground-truth steps |
-| **Step Recall** | **79.27%** | Proportion of ground-truth steps discovered by the agent |
-| **Step F1-Score** | **78.26%** | Harmonic mean of step precision and recall |
-| **Phase Accuracy** | **98.8%** | Accuracy of `FINDING`, `REMEDIATION`, and `VERIFICATION` tagging |
-| **Operation Accuracy** | **92.4%** | Accuracy of assigned operations across lifecycle |
-| **System ID Accuracy** | **96.8%** | Accuracy of system attribution (e.g., `account_service`, `search_service`) |
-| **Resource ID Accuracy** | **89.5%** | Exact match on resource identifiers across evidence |
-| **Evidence ID Grounding** | **85.2%** | Citation accuracy for participant-visible evidence |
+| **Step Precision** | **86.29%** | Proportion of generated steps that match ground-truth steps |
+| **Step Recall** | **78.24%** | Proportion of ground-truth steps discovered by the agent |
+| **Step F1-Score** | **82.07%** | Harmonic mean of step precision and recall |
+| **Phase Accuracy** | **92.77%** | Accuracy of `FINDING`, `REMEDIATION`, and `VERIFICATION` tagging |
+| **Operation Accuracy** | **68.67%** | Accuracy of assigned operations across lifecycle |
+| **System ID Accuracy** | **65.06%** | Accuracy of system attribution (e.g., `account_service`, `search_service`) |
+| **Resource ID Accuracy** | **63.86%** | Exact match on resource identifiers across evidence |
+| **Evidence ID Grounding** | **95.78%** | Citation accuracy for participant-visible evidence |
 
 ### 2.3 Sequence Accuracy
 
-- **Sequence Accuracy:** **18.75%**
+- **Sequence Accuracy:** **25.00%**
 - **Contract Adherence:** 100% of generated step arrays are strictly sorted by the deterministic contract key `(PHASE_ORDER, OPERATION_ORDER, system_id, resource_id)` and numbered consecutively starting from `1`. Discrepancies in sequence accuracy reflect edge-case variations in post-remediation verification steps for secondary systems rather than ordering violations.
 
 ---
