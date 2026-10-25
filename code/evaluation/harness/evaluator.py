@@ -58,13 +58,15 @@ class EvaluationReport:
         for fld, acc in sorted(self.field_accuracies.items()):
             lines.append(f"| `{fld}` | {acc:.2%} |")
 
-        lines.extend([
-            "",
-            "## Status Breakdown",
-            "",
-            "| Status | Total Golden | Correctly Predicted | Accuracy |",
-            "| :--- | :--- | :--- | :--- |",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Status Breakdown",
+                "",
+                "| Status | Total Golden | Correctly Predicted | Accuracy |",
+                "| :--- | :--- | :--- | :--- |",
+            ]
+        )
         for st, data in sorted(self.status_breakdown.items()):
             tot = data.get("total", 0)
             cor = data.get("correct", 0)
@@ -72,13 +74,15 @@ class EvaluationReport:
             lines.append(f"| `{st}` | {tot} | {cor} | {acc_str} |")
 
         if self.failures:
-            lines.extend([
-                "",
-                f"## Failures & Diagnostics ({len(self.failures)} cases)",
-                "",
-                "| Case ID | Expected Status | Predicted Status | Expected Steps | Predicted Steps | Issue |",
-                "| :--- | :--- | :--- | :--- | :--- | :--- |",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"## Failures & Diagnostics ({len(self.failures)} cases)",
+                    "",
+                    "| Case ID | Expected Status | Predicted Status | Expected Steps | Predicted Steps | Issue |",
+                    "| :--- | :--- | :--- | :--- | :--- | :--- |",
+                ]
+            )
             for fail in self.failures[:20]:  # Cap table at 20 lines for readability
                 issue = "; ".join(fail.details) if fail.details else "Step mismatch"
                 lines.append(
@@ -155,7 +159,7 @@ def evaluate_predictions(
         p_status, p_steps = pred_data.get(cid, ("NOT_FOUND", []))
 
         status_breakdown.setdefault(g_status, {"total": 0, "correct": 0})["total"] += 1
-        st_match = (p_status == g_status)
+        st_match = p_status == g_status
         if st_match:
             status_matches += 1
             status_breakdown[g_status]["correct"] += 1
@@ -190,8 +194,16 @@ def evaluate_predictions(
                 if str(gs.get(fld, "")) == str(ps.get(fld, "")):
                     field_match_counts[fld] += 1
 
-        p_prec = (matched_in_case / len(p_steps)) if p_steps else (1.0 if not g_steps else 0.0)
-        p_rec = (matched_in_case / len(g_steps)) if g_steps else (1.0 if not p_steps else 0.0)
+        p_prec = (
+            (matched_in_case / len(p_steps))
+            if p_steps
+            else (1.0 if not g_steps else 0.0)
+        )
+        p_rec = (
+            (matched_in_case / len(g_steps))
+            if g_steps
+            else (1.0 if not p_steps else 0.0)
+        )
         p_f1 = (
             (2 * p_prec * p_rec / (p_prec + p_rec))
             if (p_prec + p_rec) > 0
@@ -202,7 +214,9 @@ def evaluate_predictions(
         if not st_match:
             details.append(f"Status mismatch: expected {g_status}, got {p_status}")
         if g_keys != p_keys:
-            details.append(f"Steps mismatch: golden={len(g_steps)}, pred={len(p_steps)}")
+            details.append(
+                f"Steps mismatch: golden={len(g_steps)}, pred={len(p_steps)}"
+            )
 
         comp = CaseComparison(
             case_id=cid,
@@ -221,8 +235,12 @@ def evaluate_predictions(
         if not seq_match:
             failures.append(comp)
 
-    overall_prec = (total_matched_steps / total_pred_steps) if total_pred_steps > 0 else 1.0
-    overall_rec = (total_matched_steps / total_golden_steps) if total_golden_steps > 0 else 1.0
+    overall_prec = (
+        (total_matched_steps / total_pred_steps) if total_pred_steps > 0 else 1.0
+    )
+    overall_rec = (
+        (total_matched_steps / total_golden_steps) if total_golden_steps > 0 else 1.0
+    )
     overall_f1 = (
         (2 * overall_prec * overall_rec / (overall_prec + overall_rec))
         if (overall_prec + overall_rec) > 0

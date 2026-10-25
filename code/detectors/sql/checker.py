@@ -41,7 +41,9 @@ def _record_matches_subject(obj: Any, subject: SubjectContext) -> bool:
         for item in obj:
             if _match_val(item, subject):
                 return True
-            if isinstance(item, (dict, list)) and _record_matches_subject(item, subject):
+            if isinstance(item, (dict, list)) and _record_matches_subject(
+                item, subject
+            ):
                 return True
     elif _match_val(obj, subject):
         return True
@@ -145,7 +147,9 @@ class SqlSnapshotChecker:
         seen_verifications: set[tuple[str, str, Operation]],
     ) -> None:
         for tname in tables:
-            cols = [c[1] for c in cur.execute(f"PRAGMA table_info({tname});").fetchall()]
+            cols = [
+                c[1] for c in cur.execute(f"PRAGMA table_info({tname});").fetchall()
+            ]
             if "record_json" in cols and "origin_system" in cols:
                 rows = cur.execute(
                     f"SELECT resource_id, origin_system, collection_name, record_json FROM {tname};"
@@ -258,7 +262,16 @@ class SqlSnapshotChecker:
         ).fetchall()
         for rid, uid, fname, em, ph, st in rows:
             matched = False
-            if uid and uid == subject.user_id or em and em.strip().lower() in subject.emails or ph and ph.strip() in subject.phones or fname and fname.strip() in subject.names:
+            if (
+                uid
+                and uid == subject.user_id
+                or em
+                and em.strip().lower() in subject.emails
+                or ph
+                and ph.strip() in subject.phones
+                or fname
+                and fname.strip() in subject.names
+            ):
                 matched = True
 
             if not matched:
@@ -296,7 +309,12 @@ class SqlSnapshotChecker:
         ).fetchall()
         for rid, dname, em, _srid in rows:
             matched = False
-            if em and em.strip().lower() in subject.emails or dname and dname.strip() in subject.names:
+            if (
+                em
+                and em.strip().lower() in subject.emails
+                or dname
+                and dname.strip() in subject.names
+            ):
                 matched = True
 
             if matched:
@@ -451,25 +469,30 @@ class SqlSnapshotChecker:
         if not failover_ef or not ctx.subject:
             return
 
-        # Check if subject's account resource ID is known from activity
+        # Check if subject's account resource ID is known from subject.account_ids
         account_rid = None
-        for act in ctx.system_activity:
-            if (
-                act.target_system == "account_service"
-                and act.resource_id
-                and act.resource_id.startswith("account_")
-                and (
-                    any(em in (act.details or "") for em in ctx.subject.emails)
-                    or ctx.subject.user_id in (act.details or "")
-                )
-            ):
-                account_rid = act.resource_id
-                break
+        if ctx.subject.account_ids:
+            account_rid = min(ctx.subject.account_ids)
 
-        # Fallback to standard convention account_{user_num.zfill(3)}
+        if not account_rid:
+            for act in ctx.system_activity:
+                if (
+                    act.target_system == "account_service"
+                    and act.resource_id
+                    and act.resource_id.startswith("account_")
+                    and (
+                        any(em in (act.details or "") for em in ctx.subject.emails)
+                        or ctx.subject.user_id in (act.details or "")
+                    )
+                ):
+                    account_rid = act.resource_id
+                    break
+
+        # Fallback to standard convention account_{user_num.zfill(3)} only for user_01 to user_10
         if not account_rid and ctx.subject.user_id.startswith("user_"):
             num_part = ctx.subject.user_id.split("_")[1]
-            account_rid = f"account_{num_part.zfill(3)}"
+            if num_part.isdigit() and 1 <= int(num_part) <= 10:
+                account_rid = f"account_{int(num_part):03d}"
 
         if account_rid:
             vkey = ("account_service", account_rid, Operation.VERIFY_RECORD_ABSENT)

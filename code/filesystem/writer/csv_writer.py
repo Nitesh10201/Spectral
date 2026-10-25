@@ -6,7 +6,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 
-def write_output_csv(results: Sequence[AuditResult], path: str | Path = OUTPUT_PATH) -> None:
+def write_output_csv(
+    results: Sequence[AuditResult], path: str | Path = OUTPUT_PATH
+) -> None:
     """Write audit results to output.csv adhering to the challenge specification."""
     dest = Path(path)
     dest.parent.mkdir(parents=True, exist_ok=True)

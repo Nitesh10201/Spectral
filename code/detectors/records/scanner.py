@@ -124,6 +124,14 @@ class JsonRecordsScanner:
                 self._scan_export_jobs(
                     data["export_jobs"], ef, subject, result, seen_findings
                 )
+            elif (
+                data.get("collection") == "customer_export_jobs"
+                and "records" in data
+                and isinstance(data["records"], list)
+            ):
+                self._scan_export_jobs(
+                    data["records"], ef, subject, result, seen_findings
+                )
 
         return result
 
@@ -160,6 +168,59 @@ class JsonRecordsScanner:
                             data_category="SEARCH_INDEX_ENTRY",
                         )
                     )
+        # Account service
+        account_data = exports.get("account_service", {})
+        lookups = (
+            account_data.get("profile_lookups", [])
+            if isinstance(account_data, dict)
+            else []
+        )
+        for lk in lookups:
+            if not isinstance(lk, dict):
+                continue
+            rid = lk.get("resource_id", "")
+            prof = lk.get("profile")
+            status_code = lk.get("status_code", 0)
+
+            matches = False
+            if (
+                prof
+                and isinstance(prof, dict)
+                and _record_matches(prof, subject)
+                or rid
+                and rid in getattr(subject, "account_ids", frozenset())
+            ):
+                matches = True
+
+            if matches:
+                if status_code == 200:
+                    key = ("account_service", rid, Operation.REPORT_REMAINING_RECORD)
+                    if key not in seen_findings:
+                        seen_findings.add(key)
+                        result.findings.append(
+                            Finding(
+                                system_id="account_service",
+                                resource_id=rid,
+                                kind=Operation.REPORT_REMAINING_RECORD,
+                                evidence_id=ef.file_id,
+                                data_category="CUSTOMER_PROFILE",
+                            )
+                        )
+                elif status_code == 404:
+                    vkey = ("account_service", rid, Operation.VERIFY_RECORD_ABSENT)
+                    if vkey not in seen_verifications:
+                        seen_verifications.add(vkey)
+                        result.verifications.append(
+                            Step(
+                                step_no=1,
+                                phase=Phase.VERIFICATION,
+                                system_id="account_service",
+                                resource_id=rid,
+                                operation=Operation.VERIFY_RECORD_ABSENT,
+                                state=State.ABSENT,
+                                evidence_id=ef.file_id,
+                            )
+                        )
 
         # Analytics platform
         analytics_data = exports.get("analytics_platform", {})
@@ -315,9 +376,7 @@ class JsonRecordsScanner:
         # Support platform
         support_data = exports.get("support_platform", {})
         tickets = (
-            support_data.get("tickets", [])
-            if isinstance(support_data, dict)
-            else []
+            support_data.get("tickets", []) if isinstance(support_data, dict) else []
         )
         for t in tickets:
             if not isinstance(t, dict):
@@ -514,6 +573,212 @@ class JsonRecordsScanner:
                                     evidence_id=ef.file_id,
                                 )
                             )
+            elif dstore == "account_service" and col == "customer_profiles":
+                for rec in records:
+                    if not isinstance(rec, dict):
+                        continue
+                    if _record_matches(rec, subject):
+                        rid = rec.get("resource_id", "")
+                        status = rec.get("account_status", "")
+                        if status == "ACTIVE":
+                            key = (
+                                "account_service",
+                                rid,
+                                Operation.REPORT_REMAINING_RECORD,
+                            )
+                            if key not in seen_findings:
+                                seen_findings.add(key)
+                                result.findings.append(
+                                    Finding(
+                                        system_id="account_service",
+                                        resource_id=rid,
+                                        kind=Operation.REPORT_REMAINING_RECORD,
+                                        evidence_id=ef.file_id,
+                                        data_category="CUSTOMER_PROFILE",
+                                    )
+                                )
+                        else:
+                            vkey = (
+                                "account_service",
+                                rid,
+                                Operation.VERIFY_RECORD_ABSENT,
+                            )
+                            if vkey not in seen_verifications:
+                                seen_verifications.add(vkey)
+                                result.verifications.append(
+                                    Step(
+                                        step_no=1,
+                                        phase=Phase.VERIFICATION,
+                                        system_id="account_service",
+                                        resource_id=rid,
+                                        operation=Operation.VERIFY_RECORD_ABSENT,
+                                        state=State.ABSENT,
+                                        evidence_id=ef.file_id,
+                                    )
+                                )
+
+            elif col == "operational_record_history":
+                for rec in records:
+                    if not isinstance(rec, dict):
+                        continue
+                    lval = rec.get("lookup_value", "").strip()
+                    lval_lower = lval.lower()
+                    matches = (
+                        lval == subject.user_id
+                        or lval_lower in subject.emails
+                        or lval in subject.phones
+                        or lval in subject.names
+                        or lval in getattr(subject, "account_ids", frozenset())
+                    )
+                    if not matches:
+                        continue
+
+                    sys_id = rec.get("system", "")
+                    rid = rec.get("resource_id", "")
+                    res_type = rec.get("result", "")
+
+                    if res_type == "NOT_FOUND":
+                        vkey = (sys_id, rid, Operation.VERIFY_RECORD_ABSENT)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RECORD_ABSENT,
+                                    state=State.ABSENT,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+                    elif res_type == "FOUND":
+                        if sys_id in ("security_service", "legal_service"):
+                            vkey = (sys_id, rid, Operation.VERIFY_RECORD_PRESENT)
+                            if vkey not in seen_verifications:
+                                seen_verifications.add(vkey)
+                                result.verifications.append(
+                                    Step(
+                                        step_no=1,
+                                        phase=Phase.VERIFICATION,
+                                        system_id=sys_id,
+                                        resource_id=rid,
+                                        operation=Operation.VERIFY_RECORD_PRESENT,
+                                        state=State.PRESENT,
+                                        evidence_id=ef.file_id,
+                                    )
+                                )
+                        else:
+                            fkey = (sys_id, rid, Operation.REPORT_REMAINING_RECORD)
+                            if fkey not in seen_findings:
+                                seen_findings.add(fkey)
+                                result.findings.append(
+                                    Finding(
+                                        system_id=sys_id,
+                                        resource_id=rid,
+                                        kind=Operation.REPORT_REMAINING_RECORD,
+                                        evidence_id=ef.file_id,
+                                        data_category=rec.get("record_type", ""),
+                                    )
+                                )
+                    elif res_type == "IDENTIFIABLE":
+                        fkey = (sys_id, rid, Operation.REPORT_EXPOSED_PII)
+                        if fkey not in seen_findings:
+                            seen_findings.add(fkey)
+                            result.findings.append(
+                                Finding(
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    kind=Operation.REPORT_EXPOSED_PII,
+                                    evidence_id=ef.file_id,
+                                    data_category=rec.get("record_type", ""),
+                                )
+                            )
+                    elif res_type == "ACTIVE":
+                        if sys_id == "integration_service":
+                            fkey = (sys_id, rid, Operation.REPORT_ACTIVE_DATA_FLOW)
+                            if fkey not in seen_findings:
+                                seen_findings.add(fkey)
+                                result.findings.append(
+                                    Finding(
+                                        system_id=sys_id,
+                                        resource_id=rid,
+                                        kind=Operation.REPORT_ACTIVE_DATA_FLOW,
+                                        evidence_id=ef.file_id,
+                                    )
+                                )
+                        elif sys_id == "backup_service":
+                            fkey = (sys_id, rid, Operation.REPORT_RESTORE_RISK)
+                            if fkey not in seen_findings:
+                                seen_findings.add(fkey)
+                                result.findings.append(
+                                    Finding(
+                                        system_id=sys_id,
+                                        resource_id=rid,
+                                        kind=Operation.REPORT_RESTORE_RISK,
+                                        evidence_id=ef.file_id,
+                                    )
+                                )
+                    elif res_type == "DISABLED":
+                        vkey = (sys_id, rid, Operation.VERIFY_DATA_FLOW_DISABLED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_DATA_FLOW_DISABLED,
+                                    state=State.DISABLED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+                    elif res_type == "BLOCKED":
+                        vkey = (sys_id, rid, Operation.VERIFY_RESTORE_BLOCKED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RESTORE_BLOCKED,
+                                    state=State.BLOCKED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+                    elif res_type == "ANONYMIZED":
+                        vkey = (sys_id, rid, Operation.VERIFY_RECORD_ANONYMIZED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RECORD_ANONYMIZED,
+                                    state=State.ANONYMIZED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+                    elif res_type == "REDACTED":
+                        vkey = (sys_id, rid, Operation.VERIFY_RECORD_REDACTED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id=sys_id,
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RECORD_REDACTED,
+                                    state=State.REDACTED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
 
     def _scan_single_analytics(
         self,
@@ -528,7 +793,9 @@ class JsonRecordsScanner:
         if not rid:
             return
         if _record_matches(data, subject):
-            has_pii = bool(data.get("email") or data.get("phone") or data.get("full_name"))
+            has_pii = bool(
+                data.get("email") or data.get("phone") or data.get("full_name")
+            )
             if has_pii:
                 key = ("analytics_platform", rid, Operation.REPORT_EXPOSED_PII)
                 if key not in seen_findings:

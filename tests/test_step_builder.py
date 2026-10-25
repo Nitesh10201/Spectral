@@ -1,4 +1,3 @@
-
 from code.pipeline.steps.builder import build_audit_result, create_step, expand_finding
 from code.pipeline.steps.sorter import sort_and_number_steps
 from code.schemas.enums import DeletionStatus, Operation, Phase, State

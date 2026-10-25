@@ -12,7 +12,9 @@ def test_read_sql_file_from_dataset():
     conn = read_sql_file(target_file)
     assert isinstance(conn, sqlite3.Connection)
     cursor = conn.cursor()
-    tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
+    tables = cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table';"
+    ).fetchall()
     assert len(tables) > 0
     conn.close()
 

@@ -64,9 +64,7 @@ class HybridRequestClassifier:
         llm_fallback: Callable[[str], bool] | None = None,
     ) -> None:
         self.llm_fallback = llm_fallback
-        self._neg_regex = re.compile(
-            "|".join(NEGATIVE_INTENT_PATTERNS), re.IGNORECASE
-        )
+        self._neg_regex = re.compile("|".join(NEGATIVE_INTENT_PATTERNS), re.IGNORECASE)
         self._pos_regex = re.compile(
             "|".join(POSITIVE_DELETION_PATTERNS), re.IGNORECASE
         )

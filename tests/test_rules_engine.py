@@ -5,7 +5,9 @@ from code.schemas.inputs import DeletionRule, RequiredAction
 def test_rules_engine_default_actions():
     engine = DeletionRulesEngine(rules=[])
     assert engine.get_action_for_category("USER_PROFILE") == RequiredAction.DELETE
-    assert engine.get_action_for_category("ANALYTICS_PROFILE") == RequiredAction.ANONYMIZE
+    assert (
+        engine.get_action_for_category("ANALYTICS_PROFILE") == RequiredAction.ANONYMIZE
+    )
     assert engine.get_action_for_category("SUPPORT_MESSAGE") == RequiredAction.REDACT
     assert engine.get_action_for_category("SECURITY_AUDIT_LOG") == RequiredAction.RETAIN
     assert engine.get_action_for_category("ACCOUNT_TOMBSTONE") == RequiredAction.REDACT

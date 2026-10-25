@@ -7,7 +7,9 @@ from pathlib import Path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Spectral Evaluation and Output Validation")
+    parser = argparse.ArgumentParser(
+        description="Spectral Evaluation and Output Validation"
+    )
     parser.add_argument(
         "--predicted",
         type=Path,
@@ -41,7 +43,9 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"Validating contract for {args.predicted}...")
-    val_report = validate_output_file(args.predicted, expected_count=args.expected_count)
+    val_report = validate_output_file(
+        args.predicted, expected_count=args.expected_count
+    )
     if not val_report.is_valid:
         print("Contract validation FAILED:")
         for err in val_report.errors[:15]:

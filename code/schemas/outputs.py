@@ -41,8 +41,15 @@ class AuditResult(BaseModel):
         if [x.step_no for x in s] != list(range(1, len(s) + 1)):
             raise ValueError("step_no must be consecutive from 1")
 
-        keys = [(PHASE_ORDER[x.phase], OPERATION_ORDER[x.operation],
-                 x.system_id, x.resource_id) for x in s]
+        keys = [
+            (
+                PHASE_ORDER[x.phase],
+                OPERATION_ORDER[x.operation],
+                x.system_id,
+                x.resource_id,
+            )
+            for x in s
+        ]
         if keys != sorted(keys):
             raise ValueError("steps are not in the required order")
 

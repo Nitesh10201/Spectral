@@ -20,7 +20,9 @@ def _parse_log_kv(line: str) -> dict[str, str]:
     return parsed
 
 
-def _line_mentions_subject(line: str, kv: dict[str, str], subject: SubjectContext) -> bool:
+def _line_mentions_subject(
+    line: str, kv: dict[str, str], subject: SubjectContext
+) -> bool:
     """Check whether a log line refers to the subject."""
     # Fast string check
     if subject.user_id in line:
@@ -78,11 +80,26 @@ class TextLogScanner:
 
             try:
                 with open(full_path, mode="r", encoding="utf-8", errors="ignore") as f:
-                    for line in f:
-                        kv = _parse_log_kv(line)
-                        if not _line_mentions_subject(line, kv, subject):
-                            continue
+                    lines = f.readlines()
 
+                # Pass 1: find trace_ids that belong to subject
+                matched_traces: set[str] = set()
+                parsed_entries: list[dict[str, str]] = []
+                for line in lines:
+                    kv = _parse_log_kv(line)
+                    parsed_entries.append(kv)
+                    if _line_mentions_subject(line, kv, subject):
+                        tid = kv.get("trace_id")
+                        if tid:
+                            matched_traces.add(tid)
+
+                # Pass 2: process all lines that mention subject or belong to a matched trace
+                for idx, kv in enumerate(parsed_entries):
+                    line = lines[idx]
+                    tid = kv.get("trace_id")
+                    if (tid and tid in matched_traces) or _line_mentions_subject(
+                        line, kv, subject
+                    ):
                         self._process_log_entry(
                             kv, ef, subject, result, seen_findings, seen_verifications
                         )

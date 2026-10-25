@@ -8,10 +8,10 @@ def sort_and_number_steps(steps: Sequence[Step]) -> list[Step]:
     if not steps:
         return []
 
-    seen: set[tuple[str, str, str, str, str]] = set()
+    seen: set[tuple[str, str, str, str]] = set()
     unique_steps: list[Step] = []
     for s in steps:
-        key = (s.phase.value, s.operation.value, s.system_id, s.resource_id, s.evidence_id)
+        key = (s.phase.value, s.operation.value, s.system_id, s.resource_id)
         if key not in seen:
             seen.add(key)
             unique_steps.append(s)
@@ -26,7 +26,4 @@ def sort_and_number_steps(steps: Sequence[Step]) -> list[Step]:
         ),
     )
 
-    return [
-        s.model_copy(update={"step_no": i + 1})
-        for i, s in enumerate(sorted_steps)
-    ]
+    return [s.model_copy(update={"step_no": i + 1}) for i, s in enumerate(sorted_steps)]

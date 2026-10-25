@@ -59,7 +59,9 @@ def test_orchestrator_not_applicable_classification():
         detectors=[MockGhostRecordDetector()],
     )
 
-    req_opt_out = _make_request("case_na", "Please unsubscribe me from marketing emails")
+    req_opt_out = _make_request(
+        "case_na", "Please unsubscribe me from marketing emails"
+    )
     res = orchestrator.audit_case(req_opt_out)
 
     assert res.deletion_status == DeletionStatus.NOT_APPLICABLE
@@ -99,7 +101,11 @@ def test_orchestrator_incomplete_case():
 
     assert res.deletion_status == DeletionStatus.INCOMPLETE
     assert len(res.steps) == 3
-    assert [s.phase.value for s in res.steps] == ["FINDING", "REMEDIATION", "VERIFICATION"]
+    assert [s.phase.value for s in res.steps] == [
+        "FINDING",
+        "REMEDIATION",
+        "VERIFICATION",
+    ]
     assert res.steps[0].evidence_id == "ev_ghost"
     assert res.steps[1].evidence_id == ""
     assert res.steps[2].evidence_id == ""

@@ -28,7 +28,8 @@ class PipelineOrchestrator:
         self,
         detectors: Sequence[Detector] = (),
         classifier: Callable[[DeletionRequest], bool] | None = None,
-        identity_resolver: Callable[[DeletionRequest], SubjectContext | None] | None = None,
+        identity_resolver: Callable[[DeletionRequest], SubjectContext | None]
+        | None = None,
         rules: Sequence[DeletionRule] | None = None,
         evidence_files: Sequence[EvidenceFile] | None = None,
         system_activity: Sequence[ActivityRecord] | None = None,
@@ -120,9 +121,7 @@ class PipelineOrchestrator:
 
         # COMPLETE
         # Verification steps proving compliant state, must cite evidence
-        complete_verifications = [
-            v for v in all_verifications if v.evidence_id != ""
-        ]
+        complete_verifications = [v for v in all_verifications if v.evidence_id != ""]
         return build_audit_result(
             case_id=request.case_id,
             status=DeletionStatus.COMPLETE,

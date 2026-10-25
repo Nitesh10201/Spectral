@@ -21,6 +21,7 @@ class SubjectContext:
     phones: frozenset[str] = frozenset()
     email_hashes: frozenset[str] = frozenset()
     names: frozenset[str] = frozenset()
+    account_ids: frozenset[str] = frozenset()
 
 
 @dataclass

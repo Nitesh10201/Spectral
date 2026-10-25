@@ -14,40 +14,42 @@ def test_json_records_scanner_service_exports(tmp_path: Path):
     export_json = records_dir / "service_export.json"
 
     export_json.write_text(
-        json.dumps({
-            "exported_at": "2026-09-15T11:44:55Z",
-            "service_exports": {
-                "search_service": {
-                    "index_queries": [
-                        {
-                            "resource_id": "search_synth_01",
-                            "hits": {
-                                "documents": [{"email": "synth_alice@example.com"}]
-                            },
-                        }
-                    ]
+        json.dumps(
+            {
+                "exported_at": "2026-09-15T11:44:55Z",
+                "service_exports": {
+                    "search_service": {
+                        "index_queries": [
+                            {
+                                "resource_id": "search_synth_01",
+                                "hits": {
+                                    "documents": [{"email": "synth_alice@example.com"}]
+                                },
+                            }
+                        ]
+                    },
+                    "analytics_platform": {
+                        "profiles": [
+                            {
+                                "resource_id": "analytics_synth_01",
+                                "customer_reference": "user_synth_01",
+                                "email": None,
+                                "phone": None,
+                            }
+                        ]
+                    },
+                    "integration_service": {
+                        "connectors": [
+                            {
+                                "resource_id": "flow_synth_01",
+                                "customer_email": "synth_alice@example.com",
+                                "enabled": True,
+                            }
+                        ]
+                    },
                 },
-                "analytics_platform": {
-                    "profiles": [
-                        {
-                            "resource_id": "analytics_synth_01",
-                            "customer_reference": "user_synth_01",
-                            "email": None,
-                            "phone": None,
-                        }
-                    ]
-                },
-                "integration_service": {
-                    "connectors": [
-                        {
-                            "resource_id": "flow_synth_01",
-                            "customer_email": "synth_alice@example.com",
-                            "enabled": True,
-                        }
-                    ]
-                },
-            },
-        }),
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -101,35 +103,37 @@ def test_json_records_scanner_tombstones_and_audit(tmp_path: Path):
     bundle_json = records_dir / "snapshot_bundle.json"
 
     bundle_json.write_text(
-        json.dumps({
-            "exported_at": "2026-09-15T12:00:00Z",
-            "snapshots": [
-                {
-                    "data_store": "identity_service",
-                    "collection": "deleted_customer_references",
-                    "records": [
-                        {
-                            "resource_id": "tombstone_synth_01",
-                            "subject_reference": "user_synth_02",
-                            "name": "Bob Test",
-                            "email": "bob@example.com",
-                            "phone": "+19999999999",
-                        }
-                    ],
-                },
-                {
-                    "data_store": "security_service",
-                    "collection": "security_audit_events",
-                    "records": [
-                        {
-                            "resource_id": "audit_synth_01",
-                            "subject_reference": "user_synth_02",
-                            "event_name": "account_deletion_reviewed",
-                        }
-                    ],
-                },
-            ],
-        }),
+        json.dumps(
+            {
+                "exported_at": "2026-09-15T12:00:00Z",
+                "snapshots": [
+                    {
+                        "data_store": "identity_service",
+                        "collection": "deleted_customer_references",
+                        "records": [
+                            {
+                                "resource_id": "tombstone_synth_01",
+                                "subject_reference": "user_synth_02",
+                                "name": "Bob Test",
+                                "email": "bob@example.com",
+                                "phone": "+19999999999",
+                            }
+                        ],
+                    },
+                    {
+                        "data_store": "security_service",
+                        "collection": "security_audit_events",
+                        "records": [
+                            {
+                                "resource_id": "audit_synth_01",
+                                "subject_reference": "user_synth_02",
+                                "event_name": "account_deletion_reviewed",
+                            }
+                        ],
+                    },
+                ],
+            }
+        ),
         encoding="utf-8",
     )
 

@@ -39,7 +39,9 @@ def _read_csv_to_models[T: BaseModel](path: str | Path, model_cls: type[T]) -> l
         return [model_cls.model_validate(_clean_row(row)) for row in reader]
 
 
-def read_deletion_requests(path: str | Path = DELETION_REQUESTS_PATH) -> list[DeletionRequest]:
+def read_deletion_requests(
+    path: str | Path = DELETION_REQUESTS_PATH,
+) -> list[DeletionRequest]:
     """Read deletion requests CSV into a list of DeletionRequest models."""
     return _read_csv_to_models(path, DeletionRequest)
 
@@ -54,7 +56,9 @@ def read_user_audit_log(path: str | Path = USER_AUDIT_LOG_PATH) -> list[AuditLog
     return _read_csv_to_models(path, AuditLogEntry)
 
 
-def read_system_activity(path: str | Path = SYSTEM_ACTIVITY_PATH) -> list[ActivityRecord]:
+def read_system_activity(
+    path: str | Path = SYSTEM_ACTIVITY_PATH,
+) -> list[ActivityRecord]:
     """Read system activity CSV into a list of ActivityRecord models."""
     return _read_csv_to_models(path, ActivityRecord)
 

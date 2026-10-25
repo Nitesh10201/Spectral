@@ -96,7 +96,9 @@ def validate_output_file(
 
         for step_idx, step_obj in enumerate(steps_data, start=1):
             if not isinstance(step_obj, dict):
-                errors.append(f"Line {idx}, step {step_idx}: step must be a JSON object")
+                errors.append(
+                    f"Line {idx}, step {step_idx}: step must be a JSON object"
+                )
                 continue
 
             # Check required fields
@@ -111,7 +113,9 @@ def validate_output_file(
             }
             missing = req_fields - set(step_obj.keys())
             if missing:
-                errors.append(f"Line {idx}, step {step_idx}: missing fields {sorted(missing)}")
+                errors.append(
+                    f"Line {idx}, step {step_idx}: missing fields {sorted(missing)}"
+                )
                 continue
 
             step_no = step_obj.get("step_no")
@@ -177,10 +181,14 @@ def validate_output_file(
 
             system_id = str(step_obj.get("system_id", ""))
             resource_id = str(step_obj.get("resource_id", ""))
-            step_keys.append((PHASE_ORDER[ph], OPERATION_ORDER[op], system_id, resource_id))
+            step_keys.append(
+                (PHASE_ORDER[ph], OPERATION_ORDER[op], system_id, resource_id)
+            )
 
         if step_keys != sorted(step_keys):
-            errors.append(f"Line {idx}: steps are not sorted according to required ordering rules")
+            errors.append(
+                f"Line {idx}: steps are not sorted according to required ordering rules"
+            )
 
     # Check case_id sorted order
     if case_ids != sorted(case_ids):

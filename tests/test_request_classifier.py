@@ -18,10 +18,14 @@ def _make_req(text: str) -> DeletionRequest:
 def test_request_classifier_positive_intents():
     clf = HybridRequestClassifier()
     assert clf.is_deletion_authorized(_make_req("Please delete my account."))
-    assert clf.is_deletion_authorized(_make_req("I would like to erase all personal data."))
+    assert clf.is_deletion_authorized(
+        _make_req("I would like to erase all personal data.")
+    )
     assert clf.is_deletion_authorized(_make_req("Please close my account immediately."))
     assert clf.is_deletion_authorized(_make_req("Veuillez supprimer mon compte."))
-    assert clf.is_deletion_authorized(_make_req("Solicito a exclusão permanente da conta."))
+    assert clf.is_deletion_authorized(
+        _make_req("Solicito a exclusão permanente da conta.")
+    )
     assert clf.is_deletion_authorized(_make_req("계정 탈퇴 및 정보 삭제를 요청합니다."))
     assert clf.is_deletion_authorized(_make_req("アカウントの削除をお願いします。"))
 
@@ -35,13 +39,17 @@ def test_request_classifier_negative_non_deletion_intents():
         _make_req("Stop promotional emails. I am not asking for deletion.")
     )
     assert not clf.is_deletion_authorized(
-        _make_req("I'd like to download my data in a portable format. Please keep the account as it is.")
+        _make_req(
+            "I'd like to download my data in a portable format. Please keep the account as it is."
+        )
     )
     assert not clf.is_deletion_authorized(
         _make_req("I need help resetting the login. Do not close the account.")
     )
     assert not clf.is_deletion_authorized(
-        _make_req("My surname is misspelled. Can you correct it without removing any of my records?")
+        _make_req(
+            "My surname is misspelled. Can you correct it without removing any of my records?"
+        )
     )
     assert not clf.is_deletion_authorized(
         _make_req("Remove me from marketing lists only. I still want receipts.")
