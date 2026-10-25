@@ -3,6 +3,7 @@ from code.config import (
     DELETION_REQUESTS_PATH,
     DELETION_RULES_PATH,
     EVIDENCE_FILES_PATH,
+    REPO_ROOT,
     SYSTEM_ACTIVITY_PATH,
     USER_AUDIT_LOG_PATH,
     USER_IDENTITIES_PATH,
@@ -33,8 +34,10 @@ def _clean_row(row: dict[str, str | None]) -> dict[str, str | None]:
 
 
 def _read_csv_to_models[T: BaseModel](path: str | Path, model_cls: type[T]) -> list[T]:
-    path = Path(path)
-    with open(path, mode="r", encoding="utf-8") as f:
+    resolved_path = Path(path)
+    if not resolved_path.is_absolute():
+        resolved_path = (REPO_ROOT / resolved_path).resolve()
+    with open(resolved_path, mode="r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return [model_cls.model_validate(_clean_row(row)) for row in reader]
 

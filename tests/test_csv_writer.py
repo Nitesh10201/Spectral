@@ -104,3 +104,12 @@ def test_write_output_csv_mixed_cases(tmp_path: Path):
     steps_03 = json.loads(reader[2]["steps_json"])
     assert len(steps_03) == 3
     assert [s["phase"] for s in steps_03] == ["FINDING", "REMEDIATION", "VERIFICATION"]
+
+
+def test_write_output_csv_directory_target(tmp_path: Path):
+    target_dir = tmp_path / "custom_dir"
+    target_dir.mkdir()
+
+    written = write_output_csv([], target_dir)
+    assert written == target_dir / "output.csv"
+    assert (target_dir / "output.csv").exists()

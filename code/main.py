@@ -82,7 +82,9 @@ def run_pipeline(
     audit_log = read_user_audit_log(dataset_dir / "user_audit_log.csv")
 
     logger.info("Loaded %d deletion requests to audit.", len(requests))
-    logger.info("Loaded %d deletion rules, %d evidence files.", len(rules), len(evidence_files))
+    logger.info(
+        "Loaded %d deletion rules, %d evidence files.", len(rules), len(evidence_files)
+    )
 
     # 2. Build identity resolver and classifier
     resolver = IdentityResolver(
@@ -116,19 +118,21 @@ def run_pipeline(
     logger.info("Audit completed. Writing output to %s...", output_path)
 
     # 6. Write formatted CSV
-    write_output_csv(results, output_path)
-    logger.info("Successfully wrote %s.", output_path)
+    written_path = write_output_csv(results, output_path)
+    logger.info("Successfully wrote %s.", written_path)
 
     # 7. Post-run validation
     if validate:
         logger.info("Validating output against challenge contract...")
-        report = validate_output_file(output_path, expected_count=len(requests))
+        report = validate_output_file(written_path, expected_count=len(requests))
         if not report.is_valid:
             logger.error("Validation failed with %d errors:", len(report.errors))
             for err in report.errors[:10]:
                 logger.error("  %s", err)
             return 1
-        logger.info("Validation passed: output strictly complies with AGENTS.md contract!")
+        logger.info(
+            "Validation passed: output strictly complies with AGENTS.md contract!"
+        )
 
     return 0
 
