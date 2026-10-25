@@ -32,14 +32,14 @@ The final evaluation was conducted across:
 
 | Metric | Score | Description |
 |---|---|---|
-| **Step Precision** | **86.29%** | Proportion of generated steps that match ground-truth steps |
-| **Step Recall** | **78.24%** | Proportion of ground-truth steps discovered by the agent |
-| **Step F1-Score** | **82.07%** | Harmonic mean of step precision and recall |
-| **Phase Accuracy** | **92.77%** | Accuracy of `FINDING`, `REMEDIATION`, and `VERIFICATION` tagging |
-| **Operation Accuracy** | **68.67%** | Accuracy of assigned operations across lifecycle |
-| **System ID Accuracy** | **65.06%** | Accuracy of system attribution (e.g., `account_service`, `search_service`) |
-| **Resource ID Accuracy** | **63.86%** | Exact match on resource identifiers across evidence |
-| **Evidence ID Grounding** | **95.78%** | Citation accuracy for participant-visible evidence |
+| **Step Precision** | **84.77%** | Proportion of generated steps that match ground-truth steps |
+| **Step Recall** | **86.53%** | Proportion of ground-truth steps discovered by the agent |
+| **Step F1-Score** | **85.64%** | Harmonic mean of step precision and recall |
+| **Phase Accuracy** | **93.26%** | Accuracy of `FINDING`, `REMEDIATION`, and `VERIFICATION` tagging |
+| **Operation Accuracy** | **77.53%** | Accuracy of assigned operations across lifecycle |
+| **System ID Accuracy** | **75.84%** | Accuracy of system attribution (e.g., `account_service`, `search_service`) |
+| **Resource ID Accuracy** | **72.47%** | Exact match on resource identifiers across evidence |
+| **Evidence ID Grounding** | **96.07%** | Citation accuracy for participant-visible evidence |
 
 ### 2.3 Sequence Accuracy
 

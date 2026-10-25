@@ -41,6 +41,8 @@ POSITIVE_DELETION_PATTERNS: tuple[str, ...] = (
     r"l[öo]sch",
     r"usu[ńn]",
     r"cancella",
+    r"profile is gone",
+    r"account (?:and identifiable .*?have already been )?removed",
     r"удалит",
     r"стереть",
     r"삭제",

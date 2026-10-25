@@ -23,6 +23,7 @@ from code.filesystem.writer import write_output_csv
 from code.llm.vision_client import VisionClient
 from code.pipeline.classifier.request_classifier import HybridRequestClassifier
 from code.pipeline.identity.resolver import IdentityResolver
+from code.pipeline.identity.resource_resolver import ResourceResolver
 from code.pipeline.runner.orchestrator import PipelineOrchestrator
 
 logging.basicConfig(
@@ -114,10 +115,16 @@ def run_pipeline(
     ]
 
     # 4. Instantiate pipeline orchestrator
+    resource_resolver = ResourceResolver(
+        dataset_dir=dataset_dir,
+        evidence_files=evidence_files,
+        system_activity=system_activity,
+    )
     orchestrator = PipelineOrchestrator(
         detectors=detectors,
         classifier=classifier,
         identity_resolver=resolver.resolve_for_request,
+        resource_resolver=resource_resolver,
         rules=rules,
         evidence_files=evidence_files,
         system_activity=system_activity,

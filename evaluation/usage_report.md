@@ -39,17 +39,17 @@ During the final full-dataset production run producing `output.csv`, all 518 eva
 
 | Metric | Multimodal Vision Model (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) | Overall Pipeline Total |
 |---|---|---|
-| **Input (Prompt) Tokens** | 4,571,523 | 4,571,523 |
-| **Output (Completion) Tokens** | 4,042,539 | 4,042,539 |
-| **Total Tokens** | 8,614,062 | 8,614,062 |
-| **Average Tokens per Request** | 16,629.46 | 16,629.46 |
+| **Input (Prompt) Tokens** | 4,616,076 | 4,616,076 |
+| **Output (Completion) Tokens** | 5,230,973 | 5,230,973 |
+| **Total Tokens** | 9,847,049 | 9,847,049 |
+| **Average Tokens per Request** | 19,009.75 | 19,009.75 |
 
 ### 3.2 Financial Cost Summary
 
 - **Estimated Price per 1M Input Tokens:** $0.15 (NVIDIA NIM multimodal rate)
 - **Estimated Price per 1M Output Tokens:** $0.60 (NVIDIA NIM multimodal rate)
-- **Total Incurred Cost for 518 Requests:** **$3.1113**
-- **Average Cost per Request:** **$0.0060**
+- **Total Incurred Cost for 518 Requests:** **$3.8310**
+- **Average Cost per Request:** **$0.0074**
 
 ---
 

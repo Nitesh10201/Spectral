@@ -446,6 +446,151 @@ class SqlSnapshotChecker:
                             )
                         )
 
+        if "support_records" in tables:
+            rows = cur.execute(
+                "SELECT resource_id, customer_reference, requester_name, requester_email, requester_phone, message_excerpt "
+                "FROM support_records;"
+            ).fetchall()
+            for rid, cref, rname, rem, rph, _msg in rows:
+                if (cref and cref == subject.user_id) or (
+                    rem and rem.strip().lower() in subject.emails
+                ) or (rph and rph.strip() in subject.phones):
+                    has_pii = bool(rem or rph or rname)
+                    if has_pii:
+                        key = ("support_platform", rid, Operation.REPORT_EXPOSED_PII)
+                        if key not in seen_findings:
+                            seen_findings.add(key)
+                            result.findings.append(
+                                Finding(
+                                    system_id="support_platform",
+                                    resource_id=rid,
+                                    kind=Operation.REPORT_EXPOSED_PII,
+                                    evidence_id=ef.file_id,
+                                    data_category="SUPPORT_MESSAGE",
+                                )
+                            )
+                    else:
+                        vkey = ("support_platform", rid, Operation.VERIFY_RECORD_REDACTED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id="support_platform",
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RECORD_REDACTED,
+                                    state=State.REDACTED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+
+        if "customer_search_documents" in tables:
+            rows = cur.execute(
+                "SELECT resource_id, customer_reference, display_name, email, phone "
+                "FROM customer_search_documents;"
+            ).fetchall()
+            for rid, cref, _dname, em, ph in rows:
+                if (cref and cref == subject.user_id) or (
+                    em and em.strip().lower() in subject.emails
+                ) or (ph and ph.strip() in subject.phones):
+                    key = ("search_service", rid, Operation.REPORT_REMAINING_RECORD)
+                    if key not in seen_findings:
+                        seen_findings.add(key)
+                        result.findings.append(
+                            Finding(
+                                system_id="search_service",
+                                resource_id=rid,
+                                kind=Operation.REPORT_REMAINING_RECORD,
+                                evidence_id=ef.file_id,
+                                data_category="SEARCH_INDEX_ENTRY",
+                            )
+                        )
+
+        if "customer_analytics_profiles" in tables:
+            rows = cur.execute(
+                "SELECT resource_id, customer_reference, email, phone, email_hash "
+                "FROM customer_analytics_profiles;"
+            ).fetchall()
+            for rid, cref, em, ph, eh in rows:
+                if (cref and cref == subject.user_id) or (
+                    em and em.strip().lower() in subject.emails
+                ) or (ph and ph.strip() in subject.phones):
+                    has_pii = bool(em or ph or eh)
+                    if has_pii:
+                        key = ("analytics_platform", rid, Operation.REPORT_EXPOSED_PII)
+                        if key not in seen_findings:
+                            seen_findings.add(key)
+                            result.findings.append(
+                                Finding(
+                                    system_id="analytics_platform",
+                                    resource_id=rid,
+                                    kind=Operation.REPORT_EXPOSED_PII,
+                                    evidence_id=ef.file_id,
+                                    data_category="ANALYTICS_PROFILE",
+                                )
+                            )
+                    else:
+                        vkey = ("analytics_platform", rid, Operation.VERIFY_RECORD_ANONYMIZED)
+                        if vkey not in seen_verifications:
+                            seen_verifications.add(vkey)
+                            result.verifications.append(
+                                Step(
+                                    step_no=1,
+                                    phase=Phase.VERIFICATION,
+                                    system_id="analytics_platform",
+                                    resource_id=rid,
+                                    operation=Operation.VERIFY_RECORD_ANONYMIZED,
+                                    state=State.ANONYMIZED,
+                                    evidence_id=ef.file_id,
+                                )
+                            )
+
+        if "customer_exports" in tables:
+            rows = cur.execute(
+                "SELECT resource_id, customer_reference, owner_email, owner_phone "
+                "FROM customer_exports;"
+            ).fetchall()
+            for rid, cref, oem, oph in rows:
+                if (cref and cref == subject.user_id) or (
+                    oem and oem.strip().lower() in subject.emails
+                ) or (oph and oph.strip() in subject.phones):
+                    key = ("export_service", rid, Operation.REPORT_REMAINING_RECORD)
+                    if key not in seen_findings:
+                        seen_findings.add(key)
+                        result.findings.append(
+                            Finding(
+                                system_id="export_service",
+                                resource_id=rid,
+                                kind=Operation.REPORT_REMAINING_RECORD,
+                                evidence_id=ef.file_id,
+                                data_category="USER_EXPORT",
+                            )
+                        )
+
+        if "customer_profiles" in tables:
+            rows = cur.execute(
+                "SELECT resource_id, customer_reference, full_name, email, phone, account_status "
+                "FROM customer_profiles;"
+            ).fetchall()
+            for rid, cref, _fname, em, ph, st in rows:
+                if (cref and cref == subject.user_id) or (
+                    em and em.strip().lower() in subject.emails
+                ) or (ph and ph.strip() in subject.phones):
+                    if st == "ACTIVE":
+                        key = ("account_service", rid, Operation.REPORT_REMAINING_RECORD)
+                        if key not in seen_findings:
+                            seen_findings.add(key)
+                            result.findings.append(
+                                Finding(
+                                    system_id="account_service",
+                                    resource_id=rid,
+                                    kind=Operation.REPORT_REMAINING_RECORD,
+                                    evidence_id=ef.file_id,
+                                    data_category="USER_PROFILE",
+                                )
+                            )
+
     def _check_absent_account_verification(
         self,
         ctx: CaseContext,

@@ -1,3 +1,5 @@
+import logging
+
 from code.config import DELETION_REQUESTS_PATH, OUTPUT_PATH
 from code.filesystem.reader import (
     read_deletion_requests,
@@ -6,9 +8,10 @@ from code.filesystem.reader import (
     read_system_activity,
 )
 from code.filesystem.writer import write_output_csv
+from code.pipeline.identity.resource_resolver import ResourceResolver
 from code.pipeline.runner.context import CaseContext, Detector, SubjectContext
-from code.pipeline.steps.builder import build_audit_result, expand_finding
-from code.schemas.enums import DeletionStatus
+from code.pipeline.steps.builder import build_audit_result, create_step, expand_finding
+from code.schemas.enums import DeletionStatus, Operation
 from code.schemas.inputs import (
     ActivityRecord,
     DeletionRequest,
@@ -20,6 +23,8 @@ from code.schemas.outputs import AuditResult, Step
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 
 class PipelineOrchestrator:
     """Coordinates classification, identity resolution, detectors, step building, and output writing."""
@@ -30,6 +35,7 @@ class PipelineOrchestrator:
         classifier: Callable[[DeletionRequest], bool] | None = None,
         identity_resolver: Callable[[DeletionRequest], SubjectContext | None]
         | None = None,
+        resource_resolver: ResourceResolver | None = None,
         rules: Sequence[DeletionRule] | None = None,
         evidence_files: Sequence[EvidenceFile] | None = None,
         system_activity: Sequence[ActivityRecord] | None = None,
@@ -37,6 +43,7 @@ class PipelineOrchestrator:
         self.detectors: list[Detector] = list(detectors)
         self.classifier = classifier
         self.identity_resolver = identity_resolver
+        self.resource_resolver = resource_resolver
         self.rules: list[DeletionRule] = list(rules) if rules is not None else []
         self.evidence_files: list[EvidenceFile] = (
             list(evidence_files) if evidence_files is not None else []
@@ -66,6 +73,11 @@ class PipelineOrchestrator:
                 self.system_activity = read_system_activity()
             except OSError:
                 self.system_activity = []
+        if self.resource_resolver is None:
+            self.resource_resolver = ResourceResolver(
+                evidence_files=self.evidence_files,
+                system_activity=self.system_activity,
+            )
 
     def audit_case(self, request: DeletionRequest) -> AuditResult:
         """Audit a single case end-to-end and produce the compliant AuditResult."""
@@ -82,6 +94,20 @@ class PipelineOrchestrator:
         if self.identity_resolver is not None:
             subject = self.identity_resolver(request)
 
+        # 3. Resolve Account and Retained Security Audit Record
+        if self.resource_resolver is None:
+            self.load_defaults_if_empty()
+
+        account_id, account_ev_id = self.resource_resolver.resolve_account(subject, request)
+        audit_id, audit_ev_id = self.resource_resolver.resolve_audit_record(subject, request)
+
+        if not account_id:
+            logger.warning(
+                "Could not resolve account_service resource ID for case %s (email=%s).",
+                request.case_id,
+                request.email,
+            )
+
         ctx = CaseContext(
             request=request,
             subject=subject,
@@ -90,7 +116,7 @@ class PipelineOrchestrator:
             system_activity=self.system_activity,
         )
 
-        # 3. Execute Pluggable Detectors
+        # 4. Execute Pluggable Detectors
         all_findings = []
         all_verifications = []
 
@@ -99,12 +125,11 @@ class PipelineOrchestrator:
             all_findings.extend(result.findings)
             all_verifications.extend(result.verifications)
 
-        # 4. Formulate Verdict and Step Sequence
+        # 5. Formulate Verdict and Step Sequence
         if all_findings:
             # INCOMPLETE
             remediation_steps: list[Step] = []
             for finding in all_findings:
-                # Determine action from finding data_category if available
                 action = self._resolve_action(finding.data_category)
                 steps = expand_finding(finding, action)
                 remediation_steps.extend(steps)
@@ -113,20 +138,102 @@ class PipelineOrchestrator:
             for v in all_verifications:
                 remediation_steps.append(v.model_copy(update={"evidence_id": ""}))
 
+            # Always emit the account VERIFY_RECORD_ABSENT with evidence_id=""
+            if account_id:
+                remediation_steps.append(
+                    create_step(
+                        operation=Operation.VERIFY_RECORD_ABSENT,
+                        system_id="account_service",
+                        resource_id=account_id,
+                        evidence_id="",
+                    )
+                )
+
+            # Emit the audit record VERIFY_RECORD_PRESENT when one exists with evidence_id=""
+            if audit_id:
+                remediation_steps.append(
+                    create_step(
+                        operation=Operation.VERIFY_RECORD_PRESENT,
+                        system_id="security_service",
+                        resource_id=audit_id,
+                        evidence_id="",
+                    )
+                )
+
             return build_audit_result(
                 case_id=request.case_id,
                 status=DeletionStatus.INCOMPLETE,
                 steps=remediation_steps,
             )
 
-        # COMPLETE
-        # Verification steps proving compliant state, must cite evidence
-        complete_verifications = [v for v in all_verifications if v.evidence_id != ""]
-        return build_audit_result(
-            case_id=request.case_id,
-            status=DeletionStatus.COMPLETE,
-            steps=complete_verifications,
-        )
+        # Case with no findings: Check if valid evidence proves completion
+        complete_verifications: list[Step] = []
+        for v in all_verifications:
+            if v.evidence_id:
+                complete_verifications.append(v)
+
+        if account_id and account_ev_id:
+            complete_verifications.append(
+                create_step(
+                    operation=Operation.VERIFY_RECORD_ABSENT,
+                    system_id="account_service",
+                    resource_id=account_id,
+                    evidence_id=account_ev_id,
+                )
+            )
+
+        if audit_id and audit_ev_id:
+            complete_verifications.append(
+                create_step(
+                    operation=Operation.VERIFY_RECORD_PRESENT,
+                    system_id="security_service",
+                    resource_id=audit_id,
+                    evidence_id=audit_ev_id,
+                )
+            )
+
+        # Filter complete verifications
+        valid_complete_verifications = [v for v in complete_verifications if v.evidence_id]
+
+        # Invariant: Never return COMPLETE without at least one evidence-backed verification step.
+        # And if an account_id exists, account_service must be verified absent with evidence.
+        is_account_verified = bool(account_id and account_ev_id)
+        if valid_complete_verifications and (account_id is None or is_account_verified):
+            return build_audit_result(
+                case_id=request.case_id,
+                status=DeletionStatus.COMPLETE,
+                steps=valid_complete_verifications,
+            )
+        else:
+            # Cannot verify complete, must classify as INCOMPLETE
+            logger.info(
+                "Case %s lacks evidence-backed verification steps or account verification; formulating as INCOMPLETE.",
+                request.case_id,
+            )
+            remediation_steps = []
+            if account_id:
+                remediation_steps.append(
+                    create_step(
+                        operation=Operation.VERIFY_RECORD_ABSENT,
+                        system_id="account_service",
+                        resource_id=account_id,
+                        evidence_id="",
+                    )
+                )
+            if audit_id:
+                remediation_steps.append(
+                    create_step(
+                        operation=Operation.VERIFY_RECORD_PRESENT,
+                        system_id="security_service",
+                        resource_id=audit_id,
+                        evidence_id="",
+                    )
+                )
+            return build_audit_result(
+                case_id=request.case_id,
+                status=DeletionStatus.INCOMPLETE,
+                steps=remediation_steps,
+            )
 
     def _resolve_action(self, data_category: str | None) -> RequiredAction:
         """Resolve policy action for a given data category."""
